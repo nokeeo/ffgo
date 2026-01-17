@@ -1,11 +1,12 @@
+use serde::Deserialize;
 use std::env;
-use notify::Watcher;
-use notify::{EventKind, event};
-use std::{path::Path, process::Command, sync::mpsc};
-use std::fs::DirEntry;
+use std::error::Error;
+use std::fs;
+use std::path::PathBuf;
+use std::process::Command; 
 
-fn isVideoFile(entry: &DirEntry) -> bool {
-    if let Some(extension) = entry.path().extension().and_then(|e| e.to_str()) {
+fn is_video_file(path: &PathBuf) -> bool {
+    if let Some(extension) = path.extension().and_then(|e| e.to_str()) {
         return match extension {
             "mov" | "m4v" | "mkv" | "mp4" => true,
             _ => false
@@ -14,51 +15,58 @@ fn isVideoFile(entry: &DirEntry) -> bool {
     false
 }
 
-fn main() -> notify::Result<()>{
-    let args: Vec<String> = env::args().collect();
-    let paths = std::fs::read_dir(&args[1]).expect("Cannot get files at given path")
-        .filter(|entry| isVideoFile(entry.as_ref().expect("Failed to get entry")));
-    for entry in paths {
-        println!("Starting encode of file");
-        let path = entry.expect("Failed to get entry").path();
-        let output = Command::new("ffmpeg")
-            .args(["-vaapi_device", "/dev/dri/renderD128"]) 
-            .args(["-i", path.to_str().expect("Failed to get file path")])
-            .args(["-map", "0:v:0", "-map", "0:a:0", "-map", "0:s?"])
-            .args(["-vf", "format=p010,hwupload"])
-            .args(["-c:v", "hevc_vaapi"])
-            .args(["-profile:v",  "main10"])
-            .args(["-rc_mode",  "1"])
-            .args(["-qp", "22"])
-            .args(["-tag:v", "hvc1"])
-            .args(["-color_primaries", "9", "-color_trc", "16", "-colorspace", "9"])
-            .args(["-c:a", "aac", "-ac", "2"])
-            .args(["-c:s", "mov_text"])
-            .args(["-metadata:s:s:0", "title=English"])
-            .args(["-metadata:s:s:0", "language=eng"])
-            .arg(format!("./{}.mp4", path.file_stem().expect("Failed to get file name").to_str().expect("Failed to get file name")))
-            .output()
-            .expect("Failed to execute ffmpeg");
-        
-        println!("{:?}", output);
+#[derive(Debug, Deserialize)]
+struct OutputConfig {
+    extension: String,
+    directory: String
+}
+
+#[derive(Debug, Deserialize)]
+struct Config {
+    args: Vec<String>,
+    output: OutputConfig,
+}
+
+impl Config {
+    fn new_command(&self, path: &PathBuf) -> Command {
+        let mut command = Command::new("ffmpeg");
+        command.args(["-i", path.to_str().expect("Failed to convert to string")]);
+        self.add_args(&mut command);
+        self.add_output_arg(&mut command, path);
+        command
     }
 
-    // let (tx, rx) = mpsc::channel::<notify::Result<notify::Event>>();
+    fn add_args(&self, command: &mut Command) {
+        for arg in self.args.iter() {
+            for part in arg.split(' ').collect::<Vec<&str>>() {
+                command.arg(part);
+            }
+        }
+    }
 
-    // let mut watcher = notify::recommended_watcher(tx)?;
-    // let path = Path::new(&args[1]);
-    // watcher.watch(&path, notify::RecursiveMode::Recursive)?;
-    // for res in rx {
-    //     if let Ok(event) = res {
-    //         println!("{:?}", event);
-    //         match event.kind {
-    //             EventKind::Modify(event::ModifyKind::Data(_)) => {
-    //                 println!("Modiy event");
-    //                 }
-    //             },
-    //             _ => {}
-    //         }
-    //     }
-    // }
+    fn add_output_arg(&self, command: &mut Command, path: &PathBuf) { 
+        let filename = path.file_stem().expect("Faild to get file stem").to_str().expect("Failed to convert OSString to string");
+        command.arg(format!("{}/{}.{}", self.output.directory, filename, self.output.extension));
+    }
+}
+
+fn main() -> Result<(), Box<dyn Error>> { 
+    let args: Vec<String> = env::args().collect();
+    let config = fs::read_to_string(format!("{}/job.toml", &args[1])).expect("Can't open job.toml");
+    let config: Config = toml::from_str(&config)?;
+
+    let paths = std::fs::read_dir(&args[1])?.filter_map(|entry| {
+        return match entry {
+            Ok(entry) => if is_video_file(&entry.path()) { Some(entry.path()) } else { None },
+            _ => None
+        };
+    });
+
+    for path in paths {
+        let output = config.new_command(&path)
+            .output()
+            .expect("Failed to execute ffmpeg");
+        println!("{:?}", output);
+    }
     Ok(())
 }
