@@ -1,45 +1,27 @@
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::env;
 use std::error::Error;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command; 
 
-fn is_video_file(path: &PathBuf) -> bool {
-    if let Some(extension) = path.extension().and_then(|e| e.to_str()) {
-        return match extension {
-            "mov" | "m4v" | "mkv" | "mp4" => true,
-            _ => false
-        };
+fn is_config(path: &Path) -> bool {
+    if let Some(extension) = path.extension().and_then(|e| e.to_str()) &&
+        extension == "toml" {
+        return true;
     }
-    false
+
+    let stem = path.file_stem().expect("error").to_str().expect("error");
+    stem.starts_with(".")
 }
 
-fn is_subtitle_file(path: &PathBuf) -> bool {
-    if let Some(extension) = path.extension().and_then(|e| e.to_str()) {
-        return match extension {
-            "srt" | "vtt" | "ssa" | "scc" | "stl" => true,
-            _ => false
-        };
-    }
-    false
-}
-
-fn get_paths_in_dir(path: &PathBuf) -> Vec<PathBuf> {
+fn get_paths_in_dir(path: &Path) -> Vec<PathBuf> {
     return std::fs::read_dir(path).unwrap().filter_map(|entry| {
         match entry {
             Ok(entry) => Some(entry.path()),
             _ => None
         }
-    }).collect::<Vec<PathBuf>>();
-}
-
-fn get_video_subtitle_files(dir: &PathBuf, video_path: &PathBuf) -> Vec<PathBuf> {
-    let video_stem = video_path.file_stem().expect("error").to_str().expect("error");
-    return get_paths_in_dir(dir).into_iter().filter(|p| {
-        if !is_subtitle_file(p) { return false; }
-        let stem = p.file_stem().expect("error").to_str().expect("error");
-        return stem.starts_with(video_stem);
     }).collect::<Vec<PathBuf>>();
 }
 
@@ -56,16 +38,20 @@ struct Config {
 }
 
 impl Config {
-    fn new_command(&self, path: &PathBuf, subtitle_paths: &Vec<PathBuf>) -> Command {
+    fn new_command(&self, files: &Vec<PathBuf>) -> Command {
         let mut command = Command::new("ffmpeg");
-        command.args(["-i", path.to_str().expect("Failed to convert to string")]);
-        self.add_subtitle_inputs(&mut command, subtitle_paths);
+        self.add_input_files(&mut command, files);
         self.add_args(&mut command);
-        self.add_subtitle_args(&mut command, subtitle_paths);
-        self.add_output_arg(&mut command, path);
+        self.add_output_arg(&mut command, files.first().unwrap());
 
         println!("{:?}", command.get_args());
         command
+    }
+
+    fn add_input_files(&self, command: &mut Command, files: &Vec<PathBuf>) {
+        for path in files {
+            command.args(["-i", path.to_str().unwrap()]);
+        }
     }
 
     fn add_args(&self, command: &mut Command) {
@@ -80,31 +66,21 @@ impl Config {
         let filename = path.file_stem().expect("Faild to get file stem").to_str().expect("Failed to convert OSString to string");
         command.arg(format!("{}/{}.{}", self.output.directory, filename, self.output.extension));
     }
+}
 
-    fn add_subtitle_inputs(&self, command: &mut Command, subtitle_paths: &Vec<PathBuf>) {
-        for path in subtitle_paths {
-            command.args(["-i", path.to_str().expect("error")]);
-            // command.args(["-map", &format!("{}:s:{}", count, count - 1)]);
+fn get_job_id(file: &Path) -> String {
+    return file.file_stem().expect("error").to_str().expect("error").split("_").nth(0).unwrap().to_owned();
+}
 
-            // TODO: Detect the language. Hardcoded to english.
-            // command.args(["-metadata:s:s:0", "title=\"English\""]);
-            // command.args(["-metadata:s:s:0", "language=eng"]);
-        }
+fn get_jobs(dir: &Path) -> HashMap<String, Vec<PathBuf>> {
+    let mut jobs = HashMap::<String, Vec<PathBuf>>::new();
+    let paths = get_paths_in_dir(dir).into_iter().filter(|p| !is_config(p));
+    for path in paths {
+        let job_id = get_job_id(path.as_path());
+        let entry = jobs.entry(job_id).or_insert(Vec::<PathBuf>::new());
+        entry.push(path);
     }
-
-    fn add_subtitle_args(&self, command: &mut Command, subtitle_paths: &Vec<PathBuf>) {
-        // TODO: Handle input labeling more gracefully.
-        let mut count = 1;  // Input after video file.
-        for path in subtitle_paths {
-            command.args(["-map", "0:v:0", "-map", "0:a:0"]);
-            command.args(["-map", &format!("{}:s:{}", count, count - 1)]);
-
-            // TODO: Detect the language. Hardcoded to english.
-            command.args(["-metadata:s:s:0", "title=\"English\""]);
-            command.args(["-metadata:s:s:0", "language=eng"]);
-            count += 1;
-        }
-    }
+    jobs
 }
 
 fn main() -> Result<(), Box<dyn Error>> { 
@@ -114,10 +90,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let config = fs::read_to_string(format!("{}/job.toml", &args[1])).expect("Can't open job.toml");
     let config: Config = toml::from_str(&config)?;
 
-    let paths = get_paths_in_dir(&dir_path).into_iter().filter(|p| is_video_file(p));
-    for path in paths {
-        let video_subtitle_paths = get_video_subtitle_files(&dir_path, &path);
-        let output = config.new_command(&path, &video_subtitle_paths)
+    for (_, mut files) in get_jobs(dir_path.as_path()) {
+        files.sort();
+        let output = config.new_command(&files)
             .output()
             .expect("Failed to execute ffmpeg");
         println!("{:?}", output);
