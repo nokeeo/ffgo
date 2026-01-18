@@ -1,3 +1,4 @@
+use isolang::Language;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::env;
@@ -33,6 +34,13 @@ fn get_paths_in_dir(path: &Path) -> Vec<PathBuf> {
             _ => None
         }
     }).collect::<Vec<PathBuf>>();
+}
+
+fn get_subtitle_language_code(path: &Path) -> Result<&'static str, String> {
+    let stem = path.file_stem().expect("Faild to get file stem").to_str().expect("Failed to convert OSString to string");
+    let last = stem.split("_").last().unwrap();
+    let lang1 = Language::from_639_1(last).ok_or("Failed to parse subtitle part 1")?;
+    Ok(lang1.to_639_3())
 }
 
 #[derive(Debug, Deserialize)]
@@ -84,9 +92,16 @@ impl Config {
             let subtitle_paths = files.iter()
                 .enumerate()
                 .filter(|(_, p)| is_subtitle_file(p));
+            let mut stream_i = 0;
             for (i, path) in subtitle_paths {
-                // TODO: Add language tag.
-                command.args(["-map", &format!("{}:s:?", i)]);
+                command.args(["-map", &format!("{}:s:{}", i, stream_i)]);
+                let code = get_subtitle_language_code(path);
+                println!("{:?}", code);
+                if let Ok(code) = code {
+                    command.arg(&format!("-metadata:s:s:{}", stream_i));
+                    command.arg(&format!("language={}", code));
+                }
+                stream_i += 1;
             }
         }
     }
