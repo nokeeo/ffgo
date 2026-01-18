@@ -16,6 +16,16 @@ fn is_config(path: &Path) -> bool {
     stem.starts_with(".")
 }
 
+fn is_subtitle_file(path: &PathBuf) -> bool {
+    if let Some(extension) = path.extension().and_then(|e| e.to_str()) {
+        return match extension {
+            "srt" | "vtt" | "ssa" | "scc" | "stl" => true,
+            _ => false
+        };
+    }
+    false
+}
+
 fn get_paths_in_dir(path: &Path) -> Vec<PathBuf> {
     return std::fs::read_dir(path).unwrap().filter_map(|entry| {
         match entry {
@@ -35,13 +45,22 @@ struct OutputConfig {
 struct Config {
     args: Vec<String>,
     output: OutputConfig,
+    auto_map_external_subtitle_inputs: Option<bool>
 }
 
 impl Config {
+
+    fn auto_map_external_subtitle_inputs(&self) -> bool {
+        match self.auto_map_external_subtitle_inputs {
+            Some(value) => value,
+            _ => false,
+        }
+    }
+
     fn new_command(&self, files: &Vec<PathBuf>) -> Command {
         let mut command = Command::new("ffmpeg");
         self.add_input_files(&mut command, files);
-        self.add_args(&mut command);
+        self.add_args(&mut command, files);
         self.add_output_arg(&mut command, files.first().unwrap());
 
         println!("{:?}", command.get_args());
@@ -54,10 +73,20 @@ impl Config {
         }
     }
 
-    fn add_args(&self, command: &mut Command) {
+    fn add_args(&self, command: &mut Command, files: &Vec<PathBuf>) {
         for arg in self.args.iter() {
             for part in arg.split(' ').collect::<Vec<&str>>() {
                 command.arg(part);
+            }
+        }
+
+        if self.auto_map_external_subtitle_inputs() {
+            let subtitle_paths = files.iter()
+                .enumerate()
+                .filter(|(_, p)| is_subtitle_file(p));
+            for (i, path) in subtitle_paths {
+                // TODO: Add language tag.
+                command.args(["-map", &format!("{}:s:?", i)]);
             }
         }
     }
