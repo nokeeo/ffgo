@@ -17,7 +17,7 @@ fn is_config(path: &Path) -> bool {
     stem.starts_with(".")
 }
 
-fn is_subtitle_file(path: &PathBuf) -> bool {
+fn is_subtitle_file(path: &Path) -> bool {
     if let Some(extension) = path.extension().and_then(|e| e.to_str()) {
         return match extension {
             "srt" | "vtt" | "ssa" | "scc" | "stl" => true,
@@ -96,7 +96,6 @@ impl Config {
             for (i, path) in subtitle_paths {
                 command.args(["-map", &format!("{}:s:{}", i, stream_i)]);
                 let code = get_subtitle_language_code(path);
-                println!("{:?}", code);
                 if let Ok(code) = code {
                     command.arg(&format!("-metadata:s:s:{}", stream_i));
                     command.arg(&format!("language={}", code));
@@ -106,7 +105,7 @@ impl Config {
         }
     }
 
-    fn add_output_arg(&self, command: &mut Command, path: &PathBuf) { 
+    fn add_output_arg(&self, command: &mut Command, path: &Path) { 
         let filename = path.file_stem().expect("Faild to get file stem").to_str().expect("Failed to convert OSString to string");
         command.arg(format!("{}/{}.{}", self.output.directory, filename, self.output.extension));
     }
