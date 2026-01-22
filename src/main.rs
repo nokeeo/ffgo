@@ -13,8 +13,10 @@ fn is_config(path: &Path) -> bool {
         return true;
     }
 
-    let stem = path.file_stem().expect("error").to_str().expect("error");
-    stem.starts_with(".")
+    let Some(file_stem) = path.file_stem_str() else {
+        return false;
+    };
+    file_stem.starts_with(".")
 }
 
 fn is_subtitle_file(path: &Path) -> bool {
@@ -37,11 +39,28 @@ fn get_paths_in_dir(path: &Path) -> Vec<PathBuf> {
 }
 
 fn get_subtitle_language_code(path: &Path) -> Result<&'static str, String> {
-    let stem = path.file_stem().expect("Faild to get file stem").to_str().expect("Failed to convert OSString to string");
-    let last = stem.split("_").last().unwrap();
+    let Some(stem) = path.file_stem_str() else {
+        return Err(format!("Failed to parse stem: {:?}", path));
+    };
+
+    let Some(last) = stem.split("_").last() else {
+        return Err(format!("Failed to extract language code in {:?}", stem));
+    };
+
     let lang1 = Language::from_639_1(last).ok_or("Failed to parse subtitle part 1")?;
     Ok(lang1.to_639_3())
 }
+
+trait PathStrings {
+    fn file_stem_str(&self) -> Option<&str>;
+}
+
+impl PathStrings for Path {
+    fn file_stem_str(&self) -> Option<&str> {
+        return self.file_stem()?.to_str();
+    }
+}
+
 
 #[derive(Debug, Deserialize)]
 struct OutputConfig {
@@ -106,21 +125,26 @@ impl Config {
     }
 
     fn add_output_arg(&self, command: &mut Command, path: &Path) { 
-        let filename = path.file_stem().expect("Faild to get file stem").to_str().expect("Failed to convert OSString to string");
+        let Some(filename) = path.file_stem_str() else {
+            panic!("Failed to get filename of path: {:?}", path);
+        };
         command.arg(format!("{}/{}.{}", self.output.directory, filename, self.output.extension));
     }
 }
 
-fn get_job_id(file: &Path) -> String {
-    return file.file_stem().expect("error").to_str().expect("error").split("_").nth(0).unwrap().to_owned();
+fn get_job_id(file: &Path) -> Option<&str> {
+    file.file_stem_str()?.split('_').next()
 }
 
 fn get_jobs(dir: &Path) -> HashMap<String, Vec<PathBuf>> {
     let mut jobs = HashMap::<String, Vec<PathBuf>>::new();
     let paths = get_paths_in_dir(dir).into_iter().filter(|p| !is_config(p));
     for path in paths {
-        let job_id = get_job_id(path.as_path());
-        let entry = jobs.entry(job_id).or_insert(Vec::<PathBuf>::new());
+        let Some(job_id) = get_job_id(path.as_path()) else {
+            println!("Failed to get path for {:?}", path);
+            continue;
+        };
+        let entry = jobs.entry(job_id.to_owned()).or_insert(Vec::<PathBuf>::new());
         entry.push(path);
     }
     jobs
@@ -130,7 +154,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
     let mut dir_path = PathBuf::new();
     dir_path.push(&args[1]);
-    let config = fs::read_to_string(format!("{}/job.toml", &args[1])).expect("Can't open job.toml");
+    let config = fs::read_to_string(format!("{}/job.toml", &args[1]))?;
     let config: Config = toml::from_str(&config)?;
 
     for (_, mut files) in get_jobs(dir_path.as_path()) {
