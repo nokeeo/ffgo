@@ -5,7 +5,8 @@ use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
 
-fn main() -> Result<(), Box<dyn Error>> { 
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> { 
     let args: Vec<String> = env::args().collect();
     let mut dir_path = PathBuf::new();
     dir_path.push(&args[1]);

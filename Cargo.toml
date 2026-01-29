@@ -6,4 +6,5 @@ edition = "2024"
 [dependencies]
 isolang = "2.4.0"
 serde = { version = "1.0.228", features = ["derive"] }
+tokio = { version = "1.49.0", features = ["full"] }
 toml = "0.9.11"
