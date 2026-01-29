@@ -1,16 +1,17 @@
+use std::clone::Clone;
 use isolang::Language;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use std::process::Command; 
 use crate::path_strings::PathStrings;
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct OutputConfig {
     pub extension: String,
     pub directory: String
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Config {
     pub args: Vec<String>,
     pub output: OutputConfig,
