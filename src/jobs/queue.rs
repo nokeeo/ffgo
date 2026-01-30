@@ -1,9 +1,11 @@
 use std::clone::Clone;
 use std::path::PathBuf;
+use std::path::Path; 
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio::sync::Semaphore;
+use crate::jobs::file_utils;
 
 use crate::Config;
 
@@ -13,7 +15,7 @@ pub struct Job {
   tx: Option<oneshot::Sender<bool>>
 }
 
-pub struct JobQueue {
+pub struct Queue {
   tx: mpsc::Sender<Job>,
 }
 
@@ -27,10 +29,10 @@ impl Job {
   }
 }
 
-impl JobQueue {
-  pub fn new() -> JobQueue {
+impl Queue {
+  pub fn new() -> Queue {
     let (tx, rx) = mpsc::channel::<Job>(100);
-    let queue = JobQueue {
+    let queue = Queue {
       tx: tx,
     };
     queue.start(rx);
@@ -57,10 +59,24 @@ impl JobQueue {
     });
   }
 
-  pub async fn push(&self, mut job: Job) -> oneshot::Receiver<bool>{
+  pub async fn push(&self, mut job: Job) -> oneshot::Receiver<bool> {
     let (tx, rx) = oneshot::channel();
     job.tx = Some(tx);
     self.tx.send(job).await.unwrap();
     rx
+  }
+
+  pub async fn push_directory(&self, path: &Path, config: &Config) {
+    let mut job_handles = Vec::<oneshot::Receiver<bool>>::new();
+    for (_, mut files) in file_utils::get_jobs(path) {
+        files.sort();
+        println!("pusing: {:?}", files);
+        job_handles.push(self.push(Job::new(config.clone(), files)).await);
+    }
+
+    for handle in job_handles {
+        let result = handle.await.unwrap();
+        println!("Result: {}", result);
+    }
   }
 }
