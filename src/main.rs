@@ -8,7 +8,10 @@ use std::path::PathBuf;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    path: String
+    path: String,
+
+    #[arg(short, long, default_value_t = 1)]
+    jobs: usize,
 }
 
 #[tokio::main]
@@ -18,7 +21,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     dir_path.push(&args.path);
     let config = fs::read_to_string(format!("{}/job.toml", &args.path))?;
     let config: Config = toml::from_str(&config)?;
-    let queue = jobs::Queue::new();
+    let queue = jobs::Queue::new(args.jobs);
     queue.push_directory(dir_path.as_path(), &config).await;
     Ok(())
 }

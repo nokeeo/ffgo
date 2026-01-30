@@ -30,18 +30,18 @@ impl Job {
 }
 
 impl Queue {
-  pub fn new() -> Queue {
+  pub fn new(job_count: usize) -> Queue {
     let (tx, rx) = mpsc::channel::<Job>(100);
     let queue = Queue {
       tx: tx,
     };
-    queue.start(rx);
+    queue.start(job_count, rx);
     queue
   }
 
-  fn start(&self, mut rx: mpsc::Receiver<Job>) {
+  fn start(&self, job_count: usize, mut rx: mpsc::Receiver<Job>) {
     tokio::spawn(async move {
-      let semaphore = Arc::new(Semaphore::new(2));
+      let semaphore = Arc::new(Semaphore::new(job_count));
       while let Some(job) = rx.recv().await {
         let permit = semaphore.clone().acquire_owned().await.unwrap();
         tokio::task::spawn_blocking(move || {
