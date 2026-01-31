@@ -30,6 +30,8 @@ impl Config {
         let mut command = Command::new("ffmpeg");
         self.add_input_files(&mut command, files);
         self.add_args(&mut command, files);
+
+        command.args(["-progress", "pipe:1"]);
         self.add_output_arg(&mut command, files.first().unwrap());
 
         println!("{:?}", command.get_args());

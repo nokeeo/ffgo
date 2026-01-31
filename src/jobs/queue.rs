@@ -47,10 +47,10 @@ impl Queue {
         tokio::task::spawn_blocking(move || {
           let _permit = permit;
           println!("Processing {:?}", job.input_files);
-          let output = job.config.new_command(&job.input_files)
-              .output()
+          let mut child = job.config.new_command(&job.input_files)
+              .spawn()
               .expect("Failed to execute ffmpeg");
-          println!("{:?}", output);
+          child.wait().expect("failed to wait on child");
           if let Some(tx) = job.tx {
             tx.send(true).unwrap();
           }
