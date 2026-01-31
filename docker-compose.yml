@@ -1,0 +1,13 @@
+services:
+  app:
+    # This tells compose where the Dockerfile is and what to name the image
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ffgo:local
+    container_name: ffgo-watch
+    restart: unless-stopped
+    command: [
+      'watch',
+      'PATH_TO_WATCH_DIR',
+    ]
