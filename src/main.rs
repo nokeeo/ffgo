@@ -73,7 +73,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let queue = jobs::Queue::new(args.jobs);
     match &args.command {
         Some(Command::Watch { path }) => {
-            watch(&queue, path).await;
+            match watch(&queue, path).await {
+                Err(e) => {
+                    println!("Failed to watch directory due to error: {}", e);
+                },
+                _ => {},
+            }
         }
 
         None => {
