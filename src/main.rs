@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use ffgo::Config;
+use ffgo::file_constants::{JOB_CONFIG_FILE_NAME, READY_FILE_NAME};
 use ffgo::jobs;
-use ffgo::path_strings::PathStrings;
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -31,7 +31,7 @@ enum Command {
 async fn go(queue: &jobs::Queue, path: &Path) -> Result<(), Box<dyn Error>> {
     let mut config_path = PathBuf::new();
     config_path.push(path);
-    config_path.push("job.toml");
+    config_path.push(*JOB_CONFIG_FILE_NAME);
     let config = fs::read_to_string(&config_path)?;
     let config: Config = toml::from_str(&config)?;
     queue.push_directory(path, &config).await;
@@ -49,7 +49,7 @@ async fn watch(queue: &jobs::Queue, path: &Path) -> Result<(), Box<dyn Error>> {
                 match event.kind {
                     EventKind::Create(CreateKind::File) => {
                         let Some(path) = event.paths.first() else { continue; };
-                        if path.as_path().file_stem_str().unwrap_or("") == ".ready" {
+                        if path.as_path().file_stem().unwrap() == *READY_FILE_NAME {
                             let Some(parent_path) = path.parent() else { continue; };
                             let result = go(queue, parent_path).await;
                             match result {

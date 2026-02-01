@@ -1,16 +1,11 @@
 use clap::Parser;
-use once_cell::sync::Lazy;
+use ffgo::file_constants::{JOB_CONFIG_FILE_NAME, READY_FILE_NAME};
 use std::env;
 use std::error::Error;
-use std::ffi::OsStr;
 use std::fs::File;
 use std::io;
 use std::path::PathBuf;
 use std::process::Command;
-
-static JOB_CONFIG_FILE_NAME: Lazy<&'static OsStr> = Lazy::new(|| {
-  OsStr::new("job.toml")
-});
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -33,7 +28,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut buffer = String::new();
     let stdin = io::stdin();
 
-    println!("Source files are missing job.toml. Would you like to proceed? (y/n)");
+    println!("Source files are missing {:?}. Would you like to proceed? (y/n)", *JOB_CONFIG_FILE_NAME);
     stdin.read_line(&mut buffer);
     if buffer.trim() != "y" {
       return Ok(());
@@ -46,7 +41,7 @@ fn main() -> Result<(), Box<dyn Error>> {
   std::fs::create_dir(&temp_dir);
 
   let mut ready_file = temp_dir.clone();
-  ready_file.push(".ready");
+  ready_file.push(*READY_FILE_NAME);
   let _ = File::create_new(&ready_file);
   // TODO - Only fail if AlreadyExists.
 
