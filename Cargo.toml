@@ -2,6 +2,7 @@
 name = "ffgo"
 version = "0.1.0"
 edition = "2024"
+default-run = "ffgo"
 
 [dependencies]
 clap = { version = "4.5.56", features = ["derive"] }
