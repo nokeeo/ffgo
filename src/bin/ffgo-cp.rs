@@ -10,7 +10,7 @@ use std::process::Command;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-  #[arg(required = true, value_delimiter = ' ', num_args = 1..)]
+  #[arg(required = true, num_args = 1..)]
   source: Vec<PathBuf>,
   target: String,
 }
@@ -18,8 +18,7 @@ struct Args {
 fn files_contain_job_config(files: &Vec<PathBuf>) -> bool {
   files.iter()
     .filter(|p| p.file_name() == Some(*JOB_CONFIG_FILE_NAME))
-    .collect::<Vec<_>>()
-    .len() > 0
+    .count() > 0
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
