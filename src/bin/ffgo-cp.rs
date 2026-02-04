@@ -71,7 +71,9 @@ fn make_dir_if_needed(target: &str) {
       let mut handle = command.spawn().unwrap();
       handle.wait();
     },
-    _ => {},
+    _ => {
+      std::fs::create_dir_all(target);
+    },
   }
 }
 
