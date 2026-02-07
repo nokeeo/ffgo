@@ -62,29 +62,26 @@ fn files_contain_job_config(files: &Vec<PathBuf>) -> bool {
     .count() > 0
 }
 
-fn make_dir_if_needed(target: &str) {
+fn make_dir_if_needed(target: &str) -> io::Result<()> {
   match RemoteUrl::parse(target) {
     Ok(remote_url) => {
-      let Some(path) = remote_url.path else { return; };
+      let Some(path) = remote_url.path else { 
+        return Err(io::Error::new(io::ErrorKind::NotFound, "Remove URL does not have a path"));
+      };
       println!("Creating directory {:?}", path);
       let mut command = Command::new("ssh");
       command.arg(format!("{}@{}", remote_url.user, remote_url.host));
       command.arg("mkdir -p");
       command.arg(path);
 
-      let mut handle = match command.spawn() {
-        Ok(h) => h,
-        Err(e) => {
-          println!("Failed to spawn mkdir: {:?}", e);
-          return;
-        },
-      };
-      handle.wait();
+      let mut handle = command.spawn()?;
+      handle.wait()?;
     },
     _ => {
-      std::fs::create_dir_all(target);
+      std::fs::create_dir_all(target)?;
     },
   }
+  Ok(())
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -94,20 +91,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     let stdin = io::stdin();
 
     println!("Source files are missing {:?}. Would you like to proceed? (y/n)", *JOB_CONFIG_FILE_NAME);
-    stdin.read_line(&mut buffer);
+    stdin.read_line(&mut buffer)?;
     if buffer.trim() != "y" {
       return Ok(());
     }
   }
 
   if args.path_make {
-    make_dir_if_needed(&args.target);
+    println!("Creating parent directory if needed");
+    make_dir_if_needed(&args.target)?;
   }
 
   let mut temp_dir = PathBuf::new();
   temp_dir.push(env::temp_dir());
   temp_dir.push(env!("CARGO_BIN_NAME"));
-  std::fs::create_dir(&temp_dir);
+  std::fs::create_dir(&temp_dir)?;
 
   let mut ready_file = temp_dir.clone();
   ready_file.push(*READY_FILE_NAME);
@@ -120,9 +118,10 @@ fn main() -> Result<(), Box<dyn Error>> {
   command.arg(&args.target);
 
   let mut handle = command.spawn()?;
-  handle.wait();
+  handle.wait()?;
 
   // Cleanup.
-  std::fs::remove_file(&ready_file);
+  println!("Cleaning up temporary files");
+  std::fs::remove_file(&ready_file)?;
   Ok(())
 }
