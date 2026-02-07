@@ -49,7 +49,12 @@ async fn watch(queue: &jobs::Queue, path: &Path) -> Result<(), Box<dyn Error>> {
                 match event.kind {
                     EventKind::Create(CreateKind::File) => {
                         let Some(path) = event.paths.first() else { continue; };
-                        if path.as_path().file_stem().unwrap() == *READY_FILE_NAME {
+                        let Some(file_stem) = path.as_path().file_stem() else {
+                            println!("Failed to get file name of {:?}", path);
+                            continue;
+                        };
+
+                        if file_stem == *READY_FILE_NAME {
                             let Some(parent_path) = path.parent() else { continue; };
                             let result = go(queue, parent_path).await;
                             match result {

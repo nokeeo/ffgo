@@ -32,6 +32,8 @@ impl Config {
         self.add_args(&mut command, files);
 
         command.args(["-progress", "pipe:1"]);
+        // Jobs must have at least one file. It is not possible to create
+        // a job without at least one file.
         self.add_output_arg(&mut command, files.first().unwrap());
 
         println!("{:?}", command.get_args());
@@ -40,7 +42,8 @@ impl Config {
 
     fn add_input_files(&self, command: &mut Command, files: &Vec<PathBuf>) {
         for path in files {
-            command.args(["-i", path.to_str().unwrap()]);
+            command.arg("-i");
+            command.arg(path);
         }
     }
 

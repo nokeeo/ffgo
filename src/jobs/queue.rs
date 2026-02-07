@@ -1,4 +1,5 @@
 use std::clone::Clone;
+use std::io;
 use std::path::PathBuf;
 use std::path::Path; 
 use std::sync::Arc;
@@ -43,40 +44,63 @@ impl Queue {
     tokio::spawn(async move {
       let semaphore = Arc::new(Semaphore::new(job_count));
       while let Some(job) = rx.recv().await {
-        let permit = semaphore.clone().acquire_owned().await.unwrap();
+        let permit = match semaphore.clone().acquire_owned().await {
+          Ok(p) => p,
+          Err(e) => {
+            println!("Failed to acquire semaphore with error {:?}", e);
+            continue;
+          }
+        };
+
         tokio::task::spawn_blocking(move || {
           let _permit = permit;
           println!("Processing {:?}", job.input_files);
-          let mut child = job.config.new_command(&job.input_files)
-              .spawn()
-              .expect("Failed to execute ffmpeg");
+          let mut child = match job.config.new_command(&job.input_files).spawn() {
+            Ok(c) => c,
+            Err(e) => {
+              println!("Failed to spawn ffmpeg child process: {:?}", e);
+              return;
+            }
+          };
+
           child.wait().expect("failed to wait on child");
           if let Some(tx) = job.tx {
-            tx.send(true).unwrap();
+            match tx.send(true) {
+              Err(e) => {
+                println!("Failed to send result: {:?}", e);
+              }
+              _ => {}
+            }
           }
         });
       }
     });
   }
 
-  pub async fn push(&self, mut job: Job) -> oneshot::Receiver<bool> {
+  pub async fn push(&self, mut job: Job) -> Result<oneshot::Receiver<bool>, Box<dyn std::error::Error>> {
     let (tx, rx) = oneshot::channel();
     job.tx = Some(tx);
-    self.tx.send(job).await.unwrap();
-    rx
+    self.tx.send(job).await?;
+    Ok(rx)
   }
 
-  pub async fn push_directory(&self, path: &Path, config: &Config) {
+  pub async fn push_directory(&self, path: &Path, config: &Config) -> io::Result<()> {
     let mut job_handles = Vec::<oneshot::Receiver<bool>>::new();
-    for (_, mut files) in file_utils::get_jobs(path) {
+    for (_, mut files) in file_utils::get_jobs(path)? {
         files.sort();
-        println!("pusing: {:?}", files);
-        job_handles.push(self.push(Job::new(config.clone(), files)).await);
+        println!("Scheduling: {:?}", files);
+        match self.push(Job::new(config.clone(), files)).await {
+          Ok(handle) => job_handles.push(handle),
+          Err(e) => println!("Failed to schedule job: {:?}", e),
+        }
     }
 
     for handle in job_handles {
-        let result = handle.await.unwrap();
-        println!("Result: {}", result);
+        match handle.await {
+          Ok(result) => println!("Result: {}", result),
+          Err(e) => println!("Failed to retrieve results: {:?}", e),
+        }
     }
+    Ok(())
   }
 }
