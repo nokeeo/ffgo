@@ -63,7 +63,11 @@ impl Queue {
             }
           };
 
-          child.wait().expect("failed to wait on child");
+          match child.wait() {
+            Err(e) => println!("Encountered an error while waiting for child process: {:?}", e),
+            _ => {}
+          }
+
           if let Some(tx) = job.tx {
             match tx.send(true) {
               Err(e) => {
