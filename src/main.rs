@@ -34,7 +34,7 @@ async fn go(queue: &jobs::Queue, path: &Path) -> Result<(), Box<dyn Error>> {
     config_path.push(*JOB_CONFIG_FILE_NAME);
     let config = fs::read_to_string(&config_path)?;
     let config: Config = toml::from_str(&config)?;
-    queue.push_directory(path, &config).await;
+    queue.push_directory(path, &config).await?;
     Ok(())
 }
 
