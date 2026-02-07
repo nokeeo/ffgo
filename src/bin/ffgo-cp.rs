@@ -1,5 +1,6 @@
 use clap::Parser;
 use ffgo::file_constants::{JOB_CONFIG_FILE_NAME, READY_FILE_NAME};
+use once_cell::sync::Lazy;
 use regex::Regex;
 use std::env;
 use std::error::Error;
@@ -7,6 +8,10 @@ use std::fs::File;
 use std::io;
 use std::path::PathBuf;
 use std::process::Command;
+
+pub static SCP_URL_REGEX: Lazy<Regex> = Lazy::new(|| {
+  Regex::new("^(?P<user>[a-z_][a-z0-9_-]*)@(?P<host>[a-zA-Z0-9.-]+)(?::(?P<path>.*))?$").unwrap()
+});
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -29,8 +34,7 @@ struct RemoteUrl {
 
 impl RemoteUrl {
   fn parse(str: &str) -> Result<RemoteUrl, String> {
-    let regex = Regex::new("^(?P<user>[a-z_][a-z0-9_-]*)@(?P<host>[a-zA-Z0-9.-]+)(?::(?P<path>.*))?$").unwrap();
-    let Some(captures) = regex.captures(str) else { 
+    let Some(captures) = SCP_URL_REGEX.captures(str) else { 
       return Err("Failed to parse remove URL".to_string());
     };
 
@@ -68,7 +72,13 @@ fn make_dir_if_needed(target: &str) {
       command.arg("mkdir -p");
       command.arg(path);
 
-      let mut handle = command.spawn().unwrap();
+      let mut handle = match command.spawn() {
+        Ok(h) => h,
+        Err(e) => {
+          println!("Failed to spawn mkdir: {:?}", e);
+          return;
+        },
+      };
       handle.wait();
     },
     _ => {

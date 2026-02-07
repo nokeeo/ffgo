@@ -1,9 +1,9 @@
-use std::clone::Clone;
+use crate::path_strings::PathStrings;
 use isolang::Language;
 use serde::Deserialize;
+use std::clone::Clone;
 use std::path::{Path, PathBuf};
 use std::process::Command; 
-use crate::path_strings::PathStrings;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct OutputConfig {
