@@ -1,6 +1,7 @@
 use clap::Parser;
 use ffgo::file_constants::{JOB_CONFIG_FILE_NAME, READY_FILE_NAME};
 use once_cell::sync::Lazy;
+use uuid::Uuid;
 use regex::Regex;
 use std::env;
 use std::error::Error;
@@ -105,6 +106,7 @@ fn main() -> Result<(), Box<dyn Error>> {
   let mut temp_dir = PathBuf::new();
   temp_dir.push(env::temp_dir());
   temp_dir.push(env!("CARGO_BIN_NAME"));
+  temp_dir.push(Uuid::new_v4().to_string());
   std::fs::create_dir(&temp_dir)?;
 
   let mut ready_file = temp_dir.clone();
