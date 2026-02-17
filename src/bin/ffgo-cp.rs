@@ -107,7 +107,7 @@ fn main() -> Result<(), Box<dyn Error>> {
   temp_dir.push(env::temp_dir());
   temp_dir.push(env!("CARGO_BIN_NAME"));
   temp_dir.push(Uuid::new_v4().to_string());
-  std::fs::create_dir(&temp_dir)?;
+  std::fs::create_dir_all(&temp_dir)?;
 
   let mut ready_file = temp_dir.clone();
   ready_file.push(*READY_FILE_NAME);
