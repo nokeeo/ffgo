@@ -117,4 +117,4 @@ ffgo-cp ~/Videos/* [user]@[hostName]:[path]
 
 ## License
 
-This project is published under PPL. Under this license, individuals, non-profits, and worker cooperatives may use, copy, modify, and distribute this software. **Other commercial use is prohibited**. See the license for more information.
+This project is published under PPL. Under this license, individuals, non-profits, and worker cooperatives may use, copy, modify, and distribute this software. **Other commercial use is prohibited**. See the [license](./LICENSE) for more information.
