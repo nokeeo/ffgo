@@ -5,6 +5,9 @@ ffgo is a lightweight command-line utility designed to automate ffmpeg workflows
 
 Built to streamline transcoding tasks without adding unnecessary bulk, ffgo provides granular control at the command level. It’s an ideal tool for users who need to automate repetitive processing routines while maintaining the flexibility of the original ffmpeg suite.
 
+## Status
+This project is under active development and is offered as beta software. Configuration schema, command line arguments, etc. may change during this period until a stable 1.0 is released.
+
 ## Features
 - Run a ffmpeg configuration on a directory of inputs.
 - Run in watch mode. Observe a directory for changes and run a configuration on added files.
@@ -32,7 +35,7 @@ docker build -t ffgo .
 ```
 
 An example container configuration in docker-compose:
-```
+```yaml
   ffgo-watch:
     build:
       context: # Path to git directory
