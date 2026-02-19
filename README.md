@@ -73,7 +73,7 @@ When running ffgo on a directory, input files are grouped by file group prefix. 
 
 This will spawn two ffmpeg jobs. One for the video1 file group and another for the video2 file group. Input is mapped like `-i video1.mkv video1_en.srt`. The file that defines the file group name (video1.mkv) is always the first input, all other inputs are ordered alphabetically. 
 
-See job.toml documentation for ways to configure your ffgo jobs.
+See job.toml [documentation](./documentation/job.md) for how to configure your ffgo jobs.
 
 To run ffgo on a directory use the command:
 ```
