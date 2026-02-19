@@ -107,7 +107,7 @@ ffgo watch for the addition of a `.ready` file. Once this is observed, ffgo will
 ```
 
 ## ffgo-cp
-To make adding files to a watch directory simpler, the ffgo package provides the utility `ffgo-cp`. This utility takes at least one path to a source file and an destination directory. All inputs will be copied to that directory and only after they are copied, a `.ready` file is created in the output directory. For example this command copies all the files in `~/Videos` to `/watchDirectory` and after creates a `.ready` file:
+To make adding files to a watch directory simpler, the ffgo package provides the utility `ffgo-cp`. This utility takes at least one path to a source file and an destination directory. All source files will be copied to the destination directory and only after they are copied, a `.ready` file is created in the destination directory. For example this command copies all the files in `~/Videos` to `/watchDirectory` and after creates a `.ready` file:
 
 ```
 ffgo-cp ~/Videos/* /watchDirectory
