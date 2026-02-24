@@ -17,12 +17,16 @@ pub static SCP_URL_REGEX: Lazy<Regex> = Lazy::new(|| {
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
+  
+  /** Makes the destination path if it does not already exist. */
   #[arg(short)]
   path_make: bool,
 
+  /** One or more files to copy. */
   #[arg(required = true, num_args = 1..)]
   source: Vec<PathBuf>,
 
+  /** The destination of the copied file. Accepts scp remote URI scheme. */
   target: String,
 }
 

@@ -12,8 +12,13 @@ use notify::event::CreateKind;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
+    /** The directory of input files. Must be present unless using a subcommand. */
     path: Option<String>,
 
+    /**
+        The number of concurrent transcodes that are allowed to run at once. All other jobs are
+        queued.
+    */
     #[arg(short, long, default_value_t = 1)]
     jobs: usize,
 
@@ -23,7 +28,12 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Command {
+    /** 
+        Runs in watch mode. ffgo will recursively observe a given directory. Once a .ready file is
+        added, ffgo runs on the directory in which the .ready file was added.
+    */
     Watch {
+        /** The path of the directory to observe. */
         path: PathBuf 
     }
 }
